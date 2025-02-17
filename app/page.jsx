@@ -31,13 +31,24 @@ const Cube = ({ position }) => {
   return (
     <mesh position={position}>
       <boxGeometry args={[0.3, 0.5, 0.5]} />
-      <meshStandardMaterial color="purple" />
+      <meshStandardMaterial color="cyan" />
     </mesh>
   )
 }
 
+const HCube = ({ position }) => {
+  return (
+    <mesh position={position}>
+      <boxGeometry args={[0.3, 0.5, 0.5]} />
+      <meshStandardMaterial color="red" />
+    </mesh>
+  )
+}
 const Scene = () => {
+  const meshRef = useRef < THREE.Mesh > (null);
+  const [corners, setCorner] = useState([[new THREE.Vector3(0, 0, 0), new THREE.Vector3(1.1, 1.1, 0)]]) // 큐브 위치를 저장하는 상태
   const [cubes, setCubes] = useState([]) // 큐브 위치를 저장하는 상태
+  const [Hcube_p, setHCubes] = useState(new THREE.Vector3(0, 0, 0)) // 큐브 위치를 저장하는 상태
   const raycaster = useRef(new THREE.Raycaster())
   const { camera, scene } = useThree()
 
@@ -54,22 +65,61 @@ const Scene = () => {
     raycaster.current.ray.intersectPlane(plane, intersectPoint)
 
     if (intersectPoint) {
-      setCubes((prevCubes) => [...prevCubes, new THREE.Vector3(intersectPoint.x, intersectPoint.y, intersectPoint.z + 0.25)])
+      console.log(intersectPoint)
+      for (let i = 0; i < corners.length; i++) {
+        if ((corners[i][0].x < intersectPoint.x) && (corners[i][0].y < intersectPoint.y)
+          && (corners[i][1].x > intersectPoint.x) && (corners[i][1].y > intersectPoint.y) && ((corners[i][1].z > intersectPoint.z))) {
+          intersectPoint.setZ(corners[i][0].z)
+        }
+      }
+      setCubes((prevCubes) => [...prevCubes, new THREE.Vector3(intersectPoint.x + 0.15, intersectPoint.y + 0.25, intersectPoint.z + 0.25)])
+      setCorner((prevCorners) => [...prevCorners, [new THREE.Vector3(intersectPoint.x, intersectPoint.y, intersectPoint.z + 0.5), new THREE.Vector3(intersectPoint.x + 3, intersectPoint.y + 5, intersectPoint.z + 0.5)]])
     }
   }
 
+  const handleMouseOver = (event) => {
+    const mouse = new THREE.Vector2(
+      (event.clientX / window.innerWidth) * 2 - 1,
+      -(event.clientY / window.innerHeight) * 2 + 1
+    )
+
+    // Raycaster로 클릭한 위치 계산
+    raycaster.current.setFromCamera(mouse, camera)
+    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0) // Y=0 평면
+    const intersectPoint = new THREE.Vector3()
+    raycaster.current.ray.intersectPlane(plane, intersectPoint)
+
+    if (intersectPoint) {
+      for (let i = 0; i < corners.length; i++) {
+        if ((corners[i][0].x < intersectPoint.x) && (corners[i][0].y < intersectPoint.y)
+          && (corners[i][1].x > intersectPoint.x) && (corners[i][1].y > intersectPoint.y) && ((corners[i][1].z >= intersectPoint.z))) {
+          intersectPoint.setZ(corners[i][0].z)
+          setHCubes(() => new THREE.Vector3(intersectPoint.x + 0.15, intersectPoint.y + 0.25, intersectPoint.z + 0.25))
+        } else if ((corners[i][0].x < intersectPoint.x) && (corners[i][0].y < intersectPoint.y)
+          && (corners[i][1].x > intersectPoint.x) && (corners[i][1].y > intersectPoint.y) && ((corners[i][1].z >= intersectPoint.z))) {
+          setHCubes(() => new THREE.Vector3(0, 0, 10))
+        }
+      }
+    }
+  }
+  const handleMouseOut = (event) => {
+    setHCubes(() => new THREE.Vector3(0, 0, 10))
+  }
   return (
     <>
       <ambientLight />
       <pointLight position={[10, 10, 10]} />
       <mesh
+
         onPointerDown={handlePointerDown} // 클릭 이벤트 등록
-
+        onPointerMove={handleMouseOver}
+        onPointerOut={handleMouseOut}
+        position={[0.55, 0.55, -0.05]}
       >
-        <Pallet rotation={[(0 * Math.PI) / 180, 0, 0]} />
-        <meshStandardMaterial color="hotpink" />
+        <planeGeometry args={[1.1, 1.1]} />
+        <meshStandardMaterial color="black" />
       </mesh>
-
+      <HCube position={Hcube_p} />
       {cubes.map((position, index) => (
         <Cube key={index} position={position} />
       ))}
